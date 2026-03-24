@@ -1,7 +1,8 @@
-const pdf = require('html-pdf');
+const pdf = require('html-pdf'); // keep (not used but you said don't remove)
 const ejs = require('ejs');
 const path = require('path');
 const fs = require('fs');
+const puppeteer = require('puppeteer'); // ✅ added
 
 const generatePDF = async (data) => {
   const templatePath = path.join(__dirname, '../templates/offerLetter.ejs');
@@ -11,7 +12,6 @@ const generatePDF = async (data) => {
   try {
     const logoPath = path.join(__dirname, '../assets/blackLogo.png');
     const bitmap = fs.readFileSync(logoPath);
-    // Use proper MIME type for PNG
     logoBase64 = `data:image/png;base64,${bitmap.toString('base64')}`;
   } catch (err) {
     console.error("LOGO ERROR: Ensure logo is at backend/assets/blackLogo.png");
@@ -39,22 +39,38 @@ const generatePDF = async (data) => {
         month: 'long',
         year: 'numeric'
     })
-});
+  });
 
   const options = { 
     format: 'A4', 
     border: { top: '0px', right: '20mm', bottom: '20mm', left: '20mm' },
-    // Lower quality values can blur logos; keep default or use 300 for print
     type: "pdf",
     quality: "100"
   };
 
-  return new Promise((resolve, reject) => {
-    pdf.create(html, options).toBuffer((err, buffer) => {
-      if (err) reject(err);
-      else resolve(buffer);
+  // ✅ REPLACED ENGINE (html-pdf → puppeteer)
+  try {
+    const browser = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox'] // required for Render
     });
-  });
+
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+
+    const buffer = await page.pdf({
+      format: options.format,
+      printBackground: true,
+      margin: options.border
+    });
+
+    await browser.close();
+
+    return buffer;
+
+  } catch (err) {
+    console.error("PDF ERROR:", err);
+    throw err;
+  }
 };
 
 module.exports = generatePDF;
