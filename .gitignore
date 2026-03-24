@@ -10,6 +10,7 @@ yarn-error.log*
 # ENV FILES (VERY IMPORTANT)
 # =========================
 .env
+
 .env.*
 !.env.example
 
